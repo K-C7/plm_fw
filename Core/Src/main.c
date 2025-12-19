@@ -87,6 +87,22 @@ int main(void)
 
     /* USER CODE BEGIN Init */
 
+    uint8_t seg7_digit_pin[4] = {
+        SEG_DIG_0_Pin,
+        SEG_DIG_1_Pin,
+        SEG_DIG_2_Pin,
+        SEG_DIG_3_Pin,
+    };
+
+    GPIO_TypeDef *seg7_digit_port[4] = {
+        SEG_DIG_0_GPIO_Port,
+        SEG_DIG_1_GPIO_Port,
+        SEG_DIG_2_GPIO_Port,
+        SEG_DIG_3_GPIO_Port,
+    };
+
+    seg7_init(seg7_digit_pin, seg7_digit_port, SEG_SER_Pin, SEG_SER_GPIO_Port, )
+
     /* USER CODE END Init */
 
     /* Configure the system clock */

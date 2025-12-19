@@ -5,6 +5,8 @@
 #include <ctype.h>
 #include <stdbool.h>
 
+#define SEG7_DISPLAY_DELAY 1
+
 const uint8_t seg_char_num[10] = {
     0b11111100, // 0
     0b01100000, // 1
@@ -149,6 +151,7 @@ void seg7_drive(uint8_t digit, uint8_t c)
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 0);
     HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
 
+    // シフトレジスタに溜めてく
     for (int i = 0; i < 8; i++)
     {
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
@@ -156,14 +159,19 @@ void seg7_drive(uint8_t digit, uint8_t c)
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 1);
     }
 
+    // いったん消灯
     for (size_t i = 0; i < 4; i++)
     {
         HAL_GPIO_WritePin(d_port[i], d_pin[i], 0);
     }
 
+    // レジスタの中身を反映させる
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 1);
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 0);
 
+    HAL_Delay(SEG7_DISPLAY_DELAY);
+
+    // 光らせる
     HAL_GPIO_WritePin(d_port[digit], d_pin[digit], 1);
 }
 
@@ -195,5 +203,11 @@ void seg7_print(char str[], uint8_t len, bool isPaddingRight, bool isPeriodIndep
 
         char_buffer[c] = seg7_char_to_byte(str[str_index]);
         str_index++;
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        // 表示
+        seg7_drive(i, str[i]);
     }
 }
