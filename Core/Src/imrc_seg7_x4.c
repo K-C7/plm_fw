@@ -5,7 +5,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-#define SEG7_DISPLAY_DELAY 1
+#define SEG7_DISPLAY_DELAY 3
 
 const uint8_t seg_char_num[10] = {
     0b11111100, // 0
@@ -155,7 +155,8 @@ void seg7_drive(uint8_t digit, uint8_t c)
     for (int i = 0; i < 8; i++)
     {
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
-        HAL_GPIO_WritePin(ser_port, ser_pin, READ_BIT(c, 0b10000000 >> i));
+        // HAL_GPIO_WritePin(ser_port, ser_pin, (c >> (7 - i)) & 0b00000001);
+        HAL_GPIO_WritePin(ser_port, ser_pin, 1);
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 1);
     }
 
@@ -169,10 +170,18 @@ void seg7_drive(uint8_t digit, uint8_t c)
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 1);
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 0);
 
-    HAL_Delay(SEG7_DISPLAY_DELAY);
-
     // 光らせる
     HAL_GPIO_WritePin(d_port[digit], d_pin[digit], 1);
+
+    HAL_Delay(SEG7_DISPLAY_DELAY);
+}
+
+void seg7_clear()
+{
+    for (int i = 0; i < 4; i++)
+    {
+        seg7_drive(i, 0);
+    }
 }
 
 // 文字列、表示される7セグの桁数(注意)、右詰めするか、ピリオドを1つの文字として出力するかどうか

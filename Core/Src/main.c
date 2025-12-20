@@ -18,11 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32f303x8.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "imrc_seg7_x4.h"
+#include "stm32f3xx_hal_gpio.h"
+#include <stdint.h>
 
 /* USER CODE END Includes */
 
@@ -34,6 +35,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+#define ADC_R1_OHM 1000
+#define ADC_R2_OHM 500
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,6 +47,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
 
 CAN_HandleTypeDef hcan;
 
@@ -50,17 +55,19 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_CAN_Init(void);
 /* USER CODE BEGIN PFP */
+
+void pwr_relay(uint8_t relay_index, uint8_t state);
+void dbg_led(uint8_t led_index, uint8_t state);
 
 /* USER CODE END PFP */
 
@@ -87,6 +94,23 @@ int main(void)
 
     /* USER CODE BEGIN Init */
 
+    /* USER CODE END Init */
+
+    /* Configure the system clock */
+    SystemClock_Config();
+
+    /* USER CODE BEGIN SysInit */
+
+    /* USER CODE END SysInit */
+
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_DMA_Init();
+    MX_USART2_UART_Init();
+    MX_ADC1_Init();
+    MX_CAN_Init();
+    /* USER CODE BEGIN 2 */
+
     uint8_t seg7_digit_pin[4] = {
         SEG_DIG_0_Pin,
         SEG_DIG_1_Pin,
@@ -101,23 +125,22 @@ int main(void)
         SEG_DIG_3_GPIO_Port,
     };
 
-    seg7_init(seg7_digit_pin, seg7_digit_port, SEG_SER_Pin, SEG_SER_GPIO_Port, )
+    // 7セグ 初期化
+    seg7_init(seg7_digit_pin, seg7_digit_port, SEG_SER_Pin, SEG_SER_GPIO_Port, SEG_RCLK_Pin, SEG_RCLK_GPIO_Port, SEG_SRCLK_Pin, SEG_SRCLK_GPIO_Port);
+    
 
-    /* USER CODE END Init */
+    pwr_relay(0, 0);
+    pwr_relay(1, 0);
 
-    /* Configure the system clock */
-    SystemClock_Config();
+    dbg_led(0, 1);
+    dbg_led(1, 1);
+    dbg_led(2, 1);
 
-    /* USER CODE BEGIN SysInit */
+    HAL_Delay(100);
 
-    /* USER CODE END SysInit */
-
-    /* Initialize all configured peripherals */
-    MX_GPIO_Init();
-    MX_USART2_UART_Init();
-    MX_ADC1_Init();
-    MX_CAN_Init();
-    /* USER CODE BEGIN 2 */
+    dbg_led(0, 0);
+    dbg_led(1, 0);
+    dbg_led(2, 0);
 
     /* USER CODE END 2 */
 
@@ -128,6 +151,8 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
+        char seg7_buffer[8] = "1111";
+        seg7_print(seg7_buffer, 4, false, false);
     }
     /* USER CODE END 3 */
 }
@@ -200,14 +225,14 @@ static void MX_ADC1_Init(void)
     hadc1.Instance = ADC1;
     hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
     hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-    hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-    hadc1.Init.ContinuousConvMode = DISABLE;
+    hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+    hadc1.Init.ContinuousConvMode = ENABLE;
     hadc1.Init.DiscontinuousConvMode = DISABLE;
     hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
     hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
     hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc1.Init.NbrOfConversion = 1;
-    hadc1.Init.DMAContinuousRequests = DISABLE;
+    hadc1.Init.NbrOfConversion = 2;
+    hadc1.Init.DMAContinuousRequests = ENABLE;
     hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
     hadc1.Init.LowPowerAutoWait = DISABLE;
     hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
@@ -229,9 +254,18 @@ static void MX_ADC1_Init(void)
     sConfig.Channel = ADC_CHANNEL_1;
     sConfig.Rank = ADC_REGULAR_RANK_1;
     sConfig.SingleDiff = ADC_SINGLE_ENDED;
-    sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_19CYCLES_5;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;
+    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /** Configure Regular Channel
+     */
+    sConfig.Channel = ADC_CHANNEL_2;
+    sConfig.Rank = ADC_REGULAR_RANK_2;
     if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
     {
         Error_Handler();
@@ -312,6 +346,21 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+ * Enable DMA controller clock
+ */
+static void MX_DMA_Init(void)
+{
+
+    /* DMA controller clock enable */
+    __HAL_RCC_DMA1_CLK_ENABLE();
+
+    /* DMA interrupt init */
+    /* DMA1_Channel1_IRQn interrupt configuration */
+    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+}
+
+/**
  * @brief GPIO Initialization Function
  * @param None
  * @retval None
@@ -378,6 +427,44 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void pwr_relay(uint8_t relay_index, uint8_t state)
+{
+    uint8_t relay_pin[2] = {
+        RELAY_0_Pin,
+        RELAY_1_Pin};
+    GPIO_TypeDef *relay_port[2] = {
+        RELAY_0_GPIO_Port,
+        RELAY_1_GPIO_Port};
+
+    HAL_GPIO_WritePin(relay_port[relay_index], relay_pin[relay_index], state);
+}
+
+void dbg_led(uint8_t led_index, uint8_t state)
+{
+    uint8_t led_pin[3] = {
+        LED_0_Pin,
+        LED_1_Pin,
+        LED_2_Pin,
+    };
+    GPIO_TypeDef *led_port[3] = {
+        LED_0_GPIO_Port,
+        LED_1_GPIO_Port,
+        LED_2_GPIO_Port,
+
+    };
+
+    HAL_GPIO_WritePin(led_port[led_index], led_pin[led_index], state);
+}
+
+float pwr_getVoltage(uint8_t channel)
+{
+    float voltage = 0.0;
+
+    // ADCで分圧された値を取得
+
+    voltage = voltage * (float)(ADC_R1_OHM / (ADC_R1_OHM + ADC_R2_OHM));
+}
 
 /* USER CODE END 4 */
 
