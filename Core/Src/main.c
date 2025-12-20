@@ -69,10 +69,16 @@ static void MX_CAN_Init(void);
 void pwr_relay(uint8_t relay_index, uint8_t state);
 void dbg_led(uint8_t led_index, uint8_t state);
 
+void __io_putchar(uint8_t ch) {
+	HAL_UART_Transmit(&huart2, &ch, 1, 1);
+}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static uint32_t adc_dma_buffer[2];
 
 /* USER CODE END 0 */
 
@@ -127,7 +133,6 @@ int main(void)
 
     // 7セグ 初期化
     seg7_init(seg7_digit_pin, seg7_digit_port, SEG_SER_Pin, SEG_SER_GPIO_Port, SEG_RCLK_Pin, SEG_RCLK_GPIO_Port, SEG_SRCLK_Pin, SEG_SRCLK_GPIO_Port);
-    
 
     pwr_relay(0, 0);
     pwr_relay(1, 0);
@@ -141,6 +146,13 @@ int main(void)
     dbg_led(0, 0);
     dbg_led(1, 0);
     dbg_led(2, 0);
+
+    HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+
+    if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, sizeof(adc_dma_buffer)) == HAL_OK)
+        printf("Start ADC Successfully\n\r");
+    else
+        printf("Start ADC failed\n\r");
 
     /* USER CODE END 2 */
 

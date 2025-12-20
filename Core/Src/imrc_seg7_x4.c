@@ -87,7 +87,6 @@ void seg7_init(uint8_t _d_pin[4], GPIO_TypeDef *_d_port[4],
         d_pin[i] = _d_pin[i];
         d_port[i] = _d_port[i];
     }
-    
 
     ser_pin = _ser_pin;
     ser_port = _ser_port;
@@ -158,16 +157,20 @@ void seg7_drive(uint8_t digit, uint8_t c)
         // HAL_GPIO_WritePin(ser_port, ser_pin, (c >> (7 - i)) & 0b00000001);
         HAL_GPIO_WritePin(ser_port, ser_pin, 1);
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 1);
+        HAL_Delay(SEG7_DISPLAY_DELAY);
     }
 
+    HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
+
     // いったん消灯
-    for (size_t i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
     {
         HAL_GPIO_WritePin(d_port[i], d_pin[i], 0);
     }
 
     // レジスタの中身を反映させる
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 1);
+    HAL_Delay(SEG7_DISPLAY_DELAY);
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 0);
 
     // 光らせる
