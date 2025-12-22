@@ -143,13 +143,20 @@ int main(void)
     dbg_led(1, 1);
     dbg_led(2, 1);
 
-    HAL_Delay(100);
+    // HAL_Delay(500);
+    for (int i = 0; i < 100; i++)
+    {
+        // char boot_7seg[] = "417-";
+        char boot_7seg[] = "volt";
+        seg7_print(boot_7seg, 4, false, false);
+    }
+    
 
     dbg_led(0, 0);
     dbg_led(1, 0);
     dbg_led(2, 0);
 
-    // HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+    HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
     HAL_ADC_Start(&hadc1);
 
     setbuf(stdout, NULL);
@@ -170,7 +177,7 @@ int main(void)
         HAL_ADC_PollForConversion(&hadc1, 1000);
         uint32_t adc_voltage_0 = HAL_ADC_GetValue(&hadc1);
         float f_vol_0 = (float)((float)adc_voltage_0 / (float)4096) * 3.3;
-        f_vol_0 *= 25.0f / 2.8181f;
+        f_vol_0 *= 8.04878f;
 
         if(f_vol_0 < 10.0f)
         {
@@ -197,7 +204,7 @@ int main(void)
             snprintf(seg7_buffer, 8, "%.1f", f_vol_0); 
         }
 
-        seg7_buffer[4] = 'u';
+        seg7_buffer[4] = 'v';
         seg7_print(seg7_buffer, 4, false, false);
 
         // HAL_GPIO_TogglePin(LED_0_GPIO_Port, LED_0_Pin);
