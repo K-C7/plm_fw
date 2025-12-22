@@ -1,11 +1,12 @@
 ﻿#include "imrc_seg7_x4.h"
 #include "stm32f303x8.h"
 #include "stm32f3xx_hal.h"
-#include <stdio.h>
+#include "stm32f3xx_hal_gpio.h"
+// #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>
 
-#define SEG7_DISPLAY_DELAY 3
+#define SEG7_DISPLAY_DELAY 2
 
 const uint8_t seg_char_num[10] = {
     0b11111100, // 0
@@ -57,7 +58,7 @@ const uint8_t seg_char_alp[26] = {
     0b00001010, // r : 0x0A (小文字)
     0b10110110, // S : 0xB6 (5と同じ)
     0b00011110, // t : 0x1E (小文字)
-    0b01111100, // U : 0x7C
+    0b00111000, // u : 0x7C (小文字)
     0b01111100, // V : 0x7C (Uと同じ)
     0b01111100, // W : 0x7C (Uと同じ、または表記不可)
     0b01101110, // X : 0x6E (Hと同じ)
@@ -67,20 +68,20 @@ const uint8_t seg_char_alp[26] = {
     0b11011010  // Z : 0xDA (2と同じ)
 };
 
-uint8_t d_pin[4];
+uint16_t d_pin[4];
 GPIO_TypeDef *d_port[4];
 
-uint8_t ser_pin;
+uint16_t ser_pin;
 GPIO_TypeDef *ser_port;
-uint8_t rclk_pin;
+uint16_t rclk_pin;
 GPIO_TypeDef *rclk_port;
-uint8_t srclk_pin;
+uint16_t srclk_pin;
 GPIO_TypeDef *srclk_port;
 
-void seg7_init(uint8_t _d_pin[4], GPIO_TypeDef *_d_port[4],
-               uint8_t _ser_pin, GPIO_TypeDef *_ser_port,
-               uint8_t _rclk_pin, GPIO_TypeDef *_rclk_port,
-               uint8_t _srclk_pin, GPIO_TypeDef *_srclk_port)
+void seg7_init(uint16_t _d_pin[4], GPIO_TypeDef *_d_port[4],
+               uint16_t _ser_pin, GPIO_TypeDef *_ser_port,
+               uint16_t _rclk_pin, GPIO_TypeDef *_rclk_port,
+               uint16_t _srclk_pin, GPIO_TypeDef *_srclk_port)
 {
     for (int i = 0; i < 4; i++)
     {
@@ -102,7 +103,7 @@ uint8_t seg7_char_to_byte(char c)
     if (isalpha(c))
     {
         if (isupper(c))
-            tolower(c);
+            c = tolower(c);
 
         return seg_char_alp[(int)c - 'a'];
     }
@@ -151,26 +152,37 @@ void seg7_drive(uint8_t digit, uint8_t c)
     HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
 
     // シフトレジスタに溜めてく
+    /* for (int i = 0; i < 8; i++)
+    {
+        HAL_GPIO_WritePin(ser_port, ser_pin, 1);
+        HAL_GPIO_WritePin(ser_port, ser_pin, (c >> (7 - i)) & 0b00000001);
+        HAL_GPIO_WritePin(srclk_port, srclk_pin, 1);
+        HAL_GPIO_TogglePin(GPIOA, 32);
+        HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
+        HAL_Delay(SEG7_DISPLAY_DELAY);
+    } */
+
+    // シフトレジスタに溜めてく
     for (int i = 0; i < 8; i++)
     {
         HAL_GPIO_WritePin(ser_port, ser_pin, 1);
         // HAL_GPIO_WritePin(ser_port, ser_pin, (c >> (7 - i)) & 0b00000001);
+        HAL_GPIO_WritePin(ser_port, ser_pin, (c >> i) & 0b00000001);
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 1);
         HAL_GPIO_WritePin(srclk_port, srclk_pin, 0);
-        HAL_Delay(SEG7_DISPLAY_DELAY);
     }
 
     // いったん消灯
     for (int i = 0; i < 4; i++)
     {
-        HAL_GPIO_WritePin(d_port[i], d_pin[i], 1);
+        HAL_GPIO_WritePin(d_port[i], d_pin[i], 0);
     }
 
     // レジスタの中身を反映させる
     
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 0);
     HAL_GPIO_WritePin(rclk_port, rclk_pin, 1);
-    HAL_Delay(SEG7_DISPLAY_DELAY);
+    // HAL_Delay(SEG7_DISPLAY_DELAY);
 
     // 光らせる
     HAL_GPIO_WritePin(d_port[digit], d_pin[digit], 1);
