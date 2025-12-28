@@ -177,7 +177,7 @@ int main(void)
         HAL_ADC_PollForConversion(&hadc1, 1000);
         uint32_t adc_voltage_0 = HAL_ADC_GetValue(&hadc1);
         float f_vol_0 = (float)((float)adc_voltage_0 / (float)4096) * 3.3;
-        f_vol_0 *= 8.04878f;
+        f_vol_0 *= 7.85f;
 
         if(f_vol_0 < 10.0f)
         {
