@@ -179,7 +179,11 @@ int main(void)
         float f_vol_0 = (float)((float)adc_voltage_0 / (float)4096) * 3.3;
         f_vol_0 *= 7.85f;
 
-        if(f_vol_0 < 10.0f)
+        if(f_vol_0 < 0){
+            f_vol_0 = 0.0f;
+        }
+
+        if(f_vol_0 <= 19.5f)
         {
             pwr_relay(0, 1);
             dbg_led(2, 1);
@@ -193,7 +197,7 @@ int main(void)
         /* HAL_ADC_PollForConversion(&hadc1, 10);
         uint32_t adc_voltage_1 = HAL_ADC_GetValue(&hadc1); */
 
-        // printf("%.1f -> %s\n", f_vol_0 , seg7_buffer);
+        printf("%.3fv\n", f_vol_0);
 
         if (f_vol_0 < 10.0f)
         {
